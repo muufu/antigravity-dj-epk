@@ -4,6 +4,14 @@ A mobile-first DJ Electronic Press Kit builder that allows DJs to create shareab
 
 **Booker clicks link → audio plays immediately → quick credential scan → contact**
 
+## Features
+- **Mobile-First Design**: Optimized for instant loading on all devices.
+- **Demo Mode**: Try the app without credentials! Mock data is used if Supabase/Mux keys are missing.
+- **Authentication**: Secure sign-up/login via Supabase (mocked in demo).
+- **Profile Management**: customizable DJ profile with bio, genres, and location.
+- **Audio Hosting**: Direct upload to Mux for high-quality streaming (mocked in demo).
+- **Public EPK**: Shareable, SEO-optimized profile pages.
+
 ## Tech Stack
 
 - **Next.js 14** (App Router)
