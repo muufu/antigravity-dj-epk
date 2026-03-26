@@ -88,7 +88,8 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
     }
 
     // Validate form
-    const validate = (forPublish: boolean): boolean => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const validate = (_forPublish: boolean): boolean => {
         const newErrors: Record<string, string> = {}
 
         if (!djName || djName.trim().length < 2) {

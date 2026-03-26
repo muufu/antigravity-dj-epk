@@ -29,7 +29,8 @@ export async function createClient() {
                 getUser: () => Promise.resolve({ data: { user: mockUser }, error: null }),
                 getSession: () => Promise.resolve({ data: { session: {} }, error: null }),
             },
-            from: (table: string) => ({
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            from: (_table: string) => ({
                 select: () => ({
                     eq: () => ({
                         single: () => Promise.resolve({ data: mockProfile, error: null }),
@@ -48,6 +49,7 @@ export async function createClient() {
                     getPublicUrl: () => ({ data: { publicUrl: 'https://via.placeholder.com/500' } }),
                 }),
             }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any
     }
 

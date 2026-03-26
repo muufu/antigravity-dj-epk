@@ -98,7 +98,11 @@ export default function SoundCloudPlayer({ url }: SoundCloudPlayerProps) {
 
     const togglePlay = () => {
         if (!widgetRef.current || !ready) return
-        isPlaying ? widgetRef.current.pause() : widgetRef.current.play()
+        if (isPlaying) {
+            widgetRef.current.pause()
+        } else {
+            widgetRef.current.play()
+        }
     }
 
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {

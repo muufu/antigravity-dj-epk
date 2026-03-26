@@ -32,7 +32,8 @@ export function createClient() {
                 signOut: () => Promise.resolve({ error: null }),
                 onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
             },
-            from: (table: string) => ({
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            from: (_table: string) => ({
                 select: () => ({
                     eq: () => ({
                         single: () => Promise.resolve({ data: mockProfile, error: null }),
@@ -51,6 +52,7 @@ export function createClient() {
                     getPublicUrl: () => ({ data: { publicUrl: 'https://via.placeholder.com/500' } }),
                 }),
             }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any
     }
 
