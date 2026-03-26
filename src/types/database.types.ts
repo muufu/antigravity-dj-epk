@@ -13,6 +13,7 @@ export interface Profile {
     cities_played: string[]
     contact_email: string | null
     instagram_url: string | null
+    soundcloud_url: string | null
     mux_asset_id: string | null
     mux_playback_id: string | null
     audio_status: AudioStatus
@@ -32,6 +33,7 @@ export interface ProfileInsert {
     cities_played?: string[]
     contact_email?: string | null
     instagram_url?: string | null
+    soundcloud_url?: string | null
     mux_asset_id?: string | null
     mux_playback_id?: string | null
     audio_status?: AudioStatus
@@ -48,6 +50,7 @@ export interface ProfileUpdate {
     cities_played?: string[]
     contact_email?: string | null
     instagram_url?: string | null
+    soundcloud_url?: string | null
     mux_asset_id?: string | null
     mux_playback_id?: string | null
     audio_status?: AudioStatus

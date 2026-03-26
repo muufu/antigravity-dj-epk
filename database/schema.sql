@@ -18,8 +18,9 @@ create table public.profiles (
   cities_played text[] default '{}',
   contact_email text,
   instagram_url text,
-  
-  -- Audio fields
+  soundcloud_url text,
+
+  -- Audio fields (reserved for future Mux upgrade)
   mux_asset_id text,
   mux_playback_id text,
   audio_status text check (audio_status in ('none', 'uploading', 'processing', 'ready', 'error')) default 'none',

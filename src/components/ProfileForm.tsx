@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { generateSlug, uploadImageToSupabase } from '@/lib/utils'
-import { Profile, AudioStatus } from '@/types/database.types'
-import MuxAudioPlayer from '@/components/MuxPlayer'
+import { Profile } from '@/types/database.types'
 
 interface ProfileFormProps {
     profile: Profile
@@ -27,8 +26,7 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
     const [instagramUrl, setInstagramUrl] = useState(profile.instagram_url || '')
     const [profileImageUrl, setProfileImageUrl] = useState(profile.profile_image_url || '')
     const [logoUrl, setLogoUrl] = useState(profile.logo_url || '')
-    const [audioStatus, setAudioStatus] = useState<AudioStatus>(profile.audio_status as AudioStatus)
-    const [muxPlaybackId, setMuxPlaybackId] = useState(profile.mux_playback_id || '')
+    const [soundcloudUrl, setSoundcloudUrl] = useState(profile.soundcloud_url || '')
 
     // UI state
     const [saving, setSaving] = useState(false)
@@ -37,8 +35,6 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
     const [slugError, setSlugError] = useState<string | null>(null)
     const [uploadingImage, setUploadingImage] = useState<'profile' | 'logo' | null>(null)
-    const [uploadingAudio, setUploadingAudio] = useState(false)
-    const [audioUploadProgress, setAudioUploadProgress] = useState(0)
     const [errors, setErrors] = useState<Record<string, string>>({})
 
     // Track unsaved changes
@@ -115,10 +111,6 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
             newErrors.instagramUrl = 'Must be a valid URL starting with http'
         }
 
-        if (forPublish && audioStatus !== 'ready') {
-            newErrors.audio = 'Audio must be uploaded and ready before publishing'
-        }
-
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
     }
@@ -132,6 +124,7 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
         cities_played: citiesPlayed ? citiesPlayed.split(',').map((c: string) => c.trim()).filter(Boolean) : [],
         contact_email: contactEmail.trim() || null,
         instagram_url: instagramUrl.trim() || null,
+        soundcloud_url: soundcloudUrl.trim() || null,
         profile_image_url: profileImageUrl || null,
         logo_url: logoUrl || null,
     })
@@ -210,102 +203,6 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
         } finally {
             setUploadingImage(null)
         }
-    }
-
-    // Handle audio upload
-    const handleAudioUpload = async (file: File) => {
-        if (file.size > 200 * 1024 * 1024) {
-            setMessage({ type: 'error', text: 'Audio file must be less than 200MB' })
-            return
-        }
-
-        setUploadingAudio(true)
-        setAudioStatus('uploading')
-        setAudioUploadProgress(0)
-
-        try {
-            // 1. Get upload URL from our API
-            const response = await fetch('/api/upload-audio', {
-                method: 'POST',
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to create upload')
-            }
-
-            const { uploadUrl, uploadId } = await response.json()
-
-            // 2. Upload file directly to Mux
-            const xhr = new XMLHttpRequest()
-
-            await new Promise<void>((resolve, reject) => {
-                xhr.upload.addEventListener('progress', (e) => {
-                    if (e.lengthComputable) {
-                        setAudioUploadProgress(Math.round((e.loaded / e.total) * 100))
-                    }
-                })
-
-                xhr.addEventListener('load', () => {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        resolve()
-                    } else {
-                        reject(new Error(`Upload failed with status ${xhr.status}`))
-                    }
-                })
-
-                xhr.addEventListener('error', () => reject(new Error('Upload failed')))
-
-                xhr.open('PUT', uploadUrl)
-                xhr.send(file)
-            })
-
-            // 3. Poll for asset readiness
-            setAudioStatus('processing')
-            setUploadingAudio(false)
-
-            pollAssetStatus(uploadId)
-        } catch (err) {
-            console.error('Audio upload error:', err)
-            setAudioStatus('error')
-            setUploadingAudio(false)
-            setMessage({ type: 'error', text: 'Failed to upload audio' })
-        }
-    }
-
-    // Poll Mux asset status
-    const pollAssetStatus = (uploadId: string) => {
-        const maxAttempts = 60 // 5 minutes with 5s intervals
-        let attempts = 0
-
-        const interval = setInterval(async () => {
-            attempts++
-
-            try {
-                const response = await fetch('/api/check-asset', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ uploadId }),
-                })
-
-                const data = await response.json()
-
-                if (data.status === 'ready') {
-                    clearInterval(interval)
-                    setAudioStatus('ready')
-                    setMuxPlaybackId(data.playbackId)
-                    markDirty()
-                } else if (data.status === 'error' || attempts >= maxAttempts) {
-                    clearInterval(interval)
-                    setAudioStatus('error')
-                    setMessage({ type: 'error', text: 'Audio processing failed. Please try again.' })
-                } else {
-                    setAudioStatus(data.status)
-                }
-            } catch {
-                clearInterval(interval)
-                setAudioStatus('error')
-            }
-        }, 5000)
     }
 
     return (
@@ -483,104 +380,26 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
                 <p className="text-xs text-gray-500 mt-2">Max 5MB per image</p>
             </div>
 
-            {/* Audio Upload */}
+            {/* Featured Mix — SoundCloud URL */}
             <div className="bg-gray-900/60 border border-gray-800/50 rounded-2xl p-5">
                 <h3 className="text-sm font-medium text-gray-300 mb-4 flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                    Featured Mix <span className="text-red-400 text-xs">* Required to publish</span>
+                    Featured Mix
                 </h3>
-
-                {audioStatus === 'ready' && muxPlaybackId ? (
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-green-400">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Audio ready
-                        </div>
-                        <MuxAudioPlayer playbackId={muxPlaybackId} title={djName} />
-                        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800/50 text-gray-400 hover:text-white text-sm cursor-pointer transition-colors border border-gray-700/50">
-                            Replace audio
-                            <input
-                                type="file"
-                                accept=".mp3,audio/mpeg"
-                                className="hidden"
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0]
-                                    if (file) handleAudioUpload(file)
-                                }}
-                            />
-                        </label>
-                    </div>
-                ) : audioStatus === 'uploading' || uploadingAudio ? (
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-blue-400">
-                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                            Uploading... {audioUploadProgress}%
-                        </div>
-                        <div className="w-full bg-gray-800 rounded-full h-2">
-                            <div
-                                className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${audioUploadProgress}%` }}
-                            />
-                        </div>
-                    </div>
-                ) : audioStatus === 'processing' ? (
-                    <div className="flex items-center gap-2 text-sm text-yellow-400">
-                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        Processing audio... This may take a minute.
-                    </div>
-                ) : audioStatus === 'error' ? (
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-red-400">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                            </svg>
-                            Processing failed. Please try uploading again.
-                        </div>
-                        <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-800/50 text-gray-300 hover:text-white text-sm cursor-pointer transition-colors border border-gray-700/50">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                            </svg>
-                            Upload MP3
-                            <input
-                                type="file"
-                                accept=".mp3,audio/mpeg"
-                                className="hidden"
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0]
-                                    if (file) handleAudioUpload(file)
-                                }}
-                            />
-                        </label>
-                    </div>
-                ) : (
-                    <div>
-                        <label className="flex flex-col items-center justify-center w-full py-10 rounded-xl border-2 border-dashed border-gray-700/50 hover:border-green-500/50 bg-gray-800/20 cursor-pointer transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-gray-500 mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" />
-                            </svg>
-                            <span className="text-sm text-gray-400">Drop your MP3 here or click to upload</span>
-                            <span className="text-xs text-gray-500 mt-1">Max 200MB</span>
-                            <input
-                                type="file"
-                                accept=".mp3,audio/mpeg"
-                                className="hidden"
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0]
-                                    if (file) handleAudioUpload(file)
-                                }}
-                            />
-                        </label>
-                        {errors.audio && <p className="text-red-400 text-xs mt-2">{errors.audio}</p>}
-                    </div>
-                )}
+                <div>
+                    <label htmlFor="soundcloudUrl" className="block text-sm text-gray-400 mb-1.5">
+                        SoundCloud Track URL
+                    </label>
+                    <input
+                        id="soundcloudUrl"
+                        type="url"
+                        value={soundcloudUrl}
+                        onChange={(e) => { setSoundcloudUrl(e.target.value); markDirty() }}
+                        placeholder="https://soundcloud.com/yourname/your-mix"
+                        className="w-full px-4 py-3 rounded-xl bg-gray-800/50 border border-gray-700/50 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all text-sm"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Paste the URL of any public SoundCloud track or mix</p>
+                </div>
             </div>
 
             {/* Details */}
@@ -673,7 +492,7 @@ export default function ProfileForm({ profile, userId }: ProfileFormProps) {
                     </button>
                     <button
                         onClick={handlePublish}
-                        disabled={publishing || audioStatus !== 'ready'}
+                        disabled={publishing}
                         className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium text-sm hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-500/20"
                     >
                         {publishing ? 'Publishing...' : 'Publish EPK'}

@@ -1,7 +1,7 @@
 'use client'
 
 import { Profile } from '@/types/database.types'
-import MuxAudioPlayer from '@/components/MuxPlayer'
+import SoundCloudPlayer from '@/components/SoundCloudPlayer'
 
 interface PublicEPKClientProps {
     profile: Profile
@@ -57,17 +57,14 @@ export default function PublicEPKClient({ profile }: PublicEPKClientProps) {
                 </div>
 
                 {/* Audio Player — Hero Feature */}
-                {profile.mux_playback_id && (
+                {profile.soundcloud_url && (
                     <div className="mb-8">
                         <div className="bg-gray-900/60 backdrop-blur-xl border border-gray-800/50 rounded-2xl p-5">
                             <p className="text-xs text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                                 Featured Mix
                             </p>
-                            <MuxAudioPlayer
-                                playbackId={profile.mux_playback_id}
-                                title={`${profile.dj_name} - Mix`}
-                            />
+                            <SoundCloudPlayer url={profile.soundcloud_url} />
                         </div>
                     </div>
                 )}
